@@ -1,0 +1,104 @@
+@page
+@model UserReservationsModel
+@{
+    ViewData["Title"] = "Lịch Sử Độc Giả";
+}
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2 class="fw-bold"><i class="bi bi-person-lines-fill text-primary me-2"></i>Lịch Sử Đặt & Mượn Của Độc Giả</h2>
+        <p class="text-muted">Tra cứu toàn bộ sách đang mượn hoặc đã đặt của từng độc giả cụ thể.</p>
+    </div>
+    <div class="col-md-4 text-md-end align-self-center">
+        <form method="get" class="d-flex justify-content-md-end">
+            <select class="form-select w-auto me-2" name="SelectedUserId" onchange="this.form.submit()">
+                <option value="11111111-1111-1111-1111-111111111111" selected="@(Model.SelectedUserId == UserReservationsModel.SeedUser1Id)">
+                    Nguyễn Văn An (B22DCCN001)
+                </option>
+                <option value="22222222-2222-2222-2222-222222222222" selected="@(Model.SelectedUserId == UserReservationsModel.SeedUser2Id)">
+                    Trần Thị Bình (B22DCCN002)
+                </option>
+            </select>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0 text-dark">
+            <i class="bi bi-person-badge me-2 text-primary"></i>Hồ sơ: <strong>@Model.UserName</strong>
+        </h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Mã Đặt Mượn</th>
+                    <th scope="col">Tên Sách</th>
+                    <th scope="col" class="text-center">Trạng Thái</th>
+                    <th scope="col">Thời Gian Yêu Cầu</th>
+                    <th scope="col">Thời Gian Mượn / Trả</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.UserReservations.Count == 0)
+                {
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox fs-2 d-block mb-2"></i>Độc giả này chưa có lịch sử đặt hoặc mượn sách nào.
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in Model.UserReservations)
+                    {
+                        <tr>
+                            <td><code>@item.Id.ToString()[..8]...</code></td>
+                            <td><div class="fw-bold">@item.BookTitle</div></td>
+                            <td class="text-center">
+                                @switch (item.Status)
+                                {
+                                    case Library.Contracts.Enums.ReservationStatus.Pending:
+                                        <span class="badge badge-pending px-2 py-1">Pending</span>
+                                        break;
+                                    case Library.Contracts.Enums.ReservationStatus.Reserved:
+                                        <span class="badge badge-reserved px-2 py-1">Reserved</span>
+                                        break;
+                                    case Library.Contracts.Enums.ReservationStatus.Rejected:
+                                        <span class="badge badge-rejected px-2 py-1">Rejected</span>
+                                        break;
+                                    case Library.Contracts.Enums.ReservationStatus.Borrowed:
+                                        <span class="badge badge-borrowed px-2 py-1">Borrowed</span>
+                                        break;
+                                    case Library.Contracts.Enums.ReservationStatus.Returned:
+                                        <span class="badge badge-returned px-2 py-1">Returned</span>
+                                        break;
+                                }
+                            </td>
+                            <td>@item.CreatedAt.ToLocalTime().ToString("HH:mm:ss dd/MM/yyyy")</td>
+                            <td>
+                                @if (item.Status == Library.Contracts.Enums.ReservationStatus.Borrowed)
+                                {
+                                    <span class="text-primary small">Đang mượn từ: @item.BorrowedAt?.ToLocalTime().ToString("HH:mm dd/MM")</span>
+                                }
+                                else if (item.Status == Library.Contracts.Enums.ReservationStatus.Returned)
+                                {
+                                    <span class="text-muted small">Đã trả: @item.ReturnedAt?.ToLocalTime().ToString("HH:mm dd/MM")</span>
+                                }
+                                else if (item.Status == Library.Contracts.Enums.ReservationStatus.Rejected)
+                                {
+                                    <span class="text-danger small">Lý do từ chối: @(item.RejectReason ?? "Hết sách")</span>
+                                }
+                                else
+                                {
+                                    <span class="text-success small">Đã giữ chỗ, chờ đến nhận</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

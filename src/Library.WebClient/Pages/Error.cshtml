@@ -1,0 +1,26 @@
+@page
+@model ErrorModel
+@{
+    ViewData["Title"] = "Lỗi hệ thống";
+}
+
+<div class="container text-center py-5">
+    <div class="card p-5 shadow-sm mx-auto" style="max-width: 600px;">
+        <div class="text-danger mb-3">
+            <i class="bi bi-exclamation-triangle-fill display-3"></i>
+        </div>
+        <h2 class="text-danger fw-bold">Đã xảy ra lỗi</h2>
+        <p class="text-muted">Đã xảy ra sự cố trong quá trình xử lý yêu cầu của bạn.</p>
+
+        @if (Model.ShowRequestId)
+        {
+            <div class="alert alert-secondary py-2 small">
+                <strong>Request ID:</strong> <code>@Model.RequestId</code>
+            </div>
+        }
+
+        <div class="mt-4">
+            <a asp-page="/Index" class="btn btn-primary"><i class="bi bi-house-door me-1"></i>Trở về Trang Chủ</a>
+        </div>
+    </div>
+</div>
