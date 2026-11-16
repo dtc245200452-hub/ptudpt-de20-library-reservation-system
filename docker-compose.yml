@@ -1,0 +1,114 @@
+services:
+  # 1. Cơ sở dữ liệu PostgreSQL
+  postgres:
+    image: postgres:17-alpine
+    container_name: library-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-librarydb}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - library-net
+
+  # 2. Message Broker RabbitMQ (kèm giao diện quản trị Management UI)
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: library-rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"      # AMQP protocol
+      - "15672:15672"    # Web Management UI
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - library-net
+
+  # 3. ASP.NET Core Minimal API (Library API)
+  library-api:
+    build:
+      context: .
+      dockerfile: src/Library.Api/Dockerfile
+    container_name: library-api
+    restart: always
+    ports:
+      - "5000:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-librarydb};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: 5672
+      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}
+      RabbitMQ__QueueName: book-reservations
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - library-net
+
+  # 4. RabbitMQ Consumer Worker (Reservation Worker)
+  reservation-worker:
+    build:
+      context: .
+      dockerfile: src/Library.Worker/Dockerfile
+    container_name: library-reservation-worker
+    restart: always
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-librarydb};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: 5672
+      RabbitMQ__UserName: ${RABBITMQ_USER:-guest}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}
+      RabbitMQ__QueueName: book-reservations
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - library-net
+
+  # 5. Web Client (Giao diện người dùng Razor Pages)
+  web-client:
+    build:
+      context: .
+      dockerfile: src/Library.WebClient/Dockerfile
+    container_name: library-web-client
+    restart: always
+    ports:
+      - "5001:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ApiBaseUrl: "http://library-api:8080"
+    depends_on:
+      - library-api
+    networks:
+      - library-net
+
+volumes:
+  pgdata:
+    name: library_pgdata
+
+networks:
+  library-net:
+    name: library-network
+    driver: bridge
